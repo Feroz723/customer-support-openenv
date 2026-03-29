@@ -26,9 +26,16 @@ from tasks import list_task_ids
 # CONFIGURATION
 # ══════════════════════════════════════════════
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api-inference.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
-HF_TOKEN = os.getenv("HF_TOKEN", "")
+# Debug prints to verify environment variables inside the container
+print("DEBUG ENV:")
+print(f"  API_BASE_URL: '{os.getenv('API_BASE_URL')}'")
+print(f"  MODEL_NAME:   '{os.getenv('MODEL_NAME')}'")
+print(f"  HF_TOKEN exists: {bool(os.getenv('HF_TOKEN'))}")
+
+# Use env vars with fallbacks
+API_BASE_URL = os.getenv("API_BASE_URL") or "https://api-inference.huggingface.co/v1"
+MODEL_NAME = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 TEMPERATURE = 0.2       # low for reproducibility
 MAX_TOKENS = 512        # enough for a full support response
@@ -124,7 +131,7 @@ def call_llm(client: OpenAI, messages: list[dict]) -> str:
         )
         return completion.choices[0].message.content.strip()
     except Exception as e:
-        print(f"  ⚠ LLM API error: {e}")
+        print(f"  ⚠ LLM API error: {type(e).__name__}: {e}")
         return ""
 
 
@@ -135,18 +142,14 @@ def call_llm(client: OpenAI, messages: list[dict]) -> str:
 def main():
     # ── Validate config ──
     if not HF_TOKEN:
-        print("❌ ERROR: HF_TOKEN environment variable is not set.")
-        print("   Set it with: set HF_TOKEN=hf_your_token_here")
-        sys.exit(1)
+        raise ValueError("❌ ERROR: HF_TOKEN is missing or empty. Please set it in HF Space Secrets.")
 
     print("=" * 60)
     print("CUSTOMER SUPPORT RESOLUTION — INFERENCE")
     print("=" * 60)
-    print(f"  API Base: {API_BASE_URL}")
-    print(f"  Model:    {MODEL_NAME}")
-    print(f"  Token:    {HF_TOKEN[:8]}...{HF_TOKEN[-4:]}")
-    print(f"  Temp:     {TEMPERATURE}")
-    print(f"  Max Tok:  {MAX_TOKENS}")
+    print(f"  API Base: '{API_BASE_URL}'")
+    print(f"  Model:    '{MODEL_NAME}'")
+    print(f"  Token:    '{HF_TOKEN[:8]}...{HF_TOKEN[-4:]}'")
     print()
 
     # ── Init client ──

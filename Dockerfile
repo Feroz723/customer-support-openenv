@@ -13,9 +13,6 @@ COPY grading.py .
 COPY environment.py .
 COPY inference.py .
 
-# Environment variables passed at runtime
-ENV API_BASE_URL=""
-ENV MODEL_NAME=""
-ENV HF_TOKEN=""
+# Environment variables should be set in the Hugging Face Space Settings (Variables and Secrets)
 
 CMD ["python", "inference.py"]
