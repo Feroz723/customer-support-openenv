@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Inference script for Customer Support Resolution Environment.
 Connects the OpenEnv environment to an LLM via OpenAI-compatible API.
@@ -10,8 +11,6 @@ Usage:
     python inference.py
 """
 print("=== CONTAINER STARTED ===", flush=True)
-
-from __future__ import annotations
 import os
 import sys
 import json
