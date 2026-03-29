@@ -56,7 +56,7 @@ class Observation(BaseModel):
 
 class Action(BaseModel):
     """What the agent sends to step()."""
-    response: str = Field(..., min_length=1, max_length=2000)
+    response: str = Field(..., min_length=1, max_length=8192)
     proposed_resolution: str | None = None
     escalate: bool = False
 
