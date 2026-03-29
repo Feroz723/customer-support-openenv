@@ -12,7 +12,10 @@ COPY tasks.py .
 COPY grading.py .
 COPY environment.py .
 COPY inference.py .
+COPY api.py .
 
-# Environment variables should be set in the Hugging Face Space Settings (Variables and Secrets)
+# HF Space requires port 7860
+EXPOSE 7860
 
-CMD ["python", "inference.py"]
+# Run the FastAPI server
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "7860"]
