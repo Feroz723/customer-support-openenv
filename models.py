@@ -5,7 +5,7 @@ Minimal MVP — single-turn, no FastAPI.
 
 from __future__ import annotations
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Literal, Any
 
 
 # ──────────────────────────────────────────────
@@ -68,7 +68,7 @@ class RewardBreakdown(BaseModel):
     helpfulness_score: float = 0.0  # 0.0 – 0.3
     penalty: float = 0.0            # 0.0 to -0.2
     total: float = 0.0              # clamped [0.0, 1.0]
-    reasoning: dict[str, str] = Field(default_factory=dict)
+    reasoning: dict[str, Any] = Field(default_factory=dict)
 
 
 # Pydantic needs RewardBreakdown defined before Observation references it,

@@ -123,6 +123,16 @@ customer-support-env/
 └── README.md            # This file
 ```
 
+### Why this environment is robust
+
+Unlike naive evaluation environments, this system is specifically designed to distinguish between **surface-level fluency** and **actual problem-solving ability**:
+
+- **Correctness Gating**: Prevents reward inflation by drastically reducing the final score if core resolutions are missed, regardless of how polite the agent sounds.
+- **Structure-Aware Penalties**: Detects and punishes "bluffing"—responses that use helpful-sounding templates but provide zero actual resolution.
+- **Deterministic Evaluation**: Uses a keyword-based grading engine to ensure identical inputs always result in identical, reproducible scores.
+- **Explainable Reasoning**: Every reward comes with a structured, audit-ready breakdown of scores and logic for transparency.
+- **Constraint-Aware Tasks**: Includes tasks (like `hard_002`) that enforce logical constraints, such as prioritizing security actions before financial settlements.
+
 ---
 
 ## API

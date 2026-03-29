@@ -5,6 +5,7 @@ Same input → same output, always.
 """
 
 from __future__ import annotations
+from typing import Any
 from models import RewardBreakdown
 from tasks import Task
 
@@ -65,7 +66,6 @@ FOLLOWUP_PHRASES = [
     "tracking number", "confirmation email",
 ]
 
-
 GENERIC_PHRASES = [
     "we will look into it",
     "apologies for the inconvenience",
@@ -74,9 +74,20 @@ GENERIC_PHRASES = [
     "look into this for you",
 ]
 
+# Security ordering keywords for hard_002
+SECURITY_KEYWORDS = [
+    "reset your password", "enable 2fa", "two-factor authentication",
+    "secure your account", "password update", "freeze account",
+]
+
+REFUND_KEYWORDS = [
+    "refund", "money back", "billing error", "double charge",
+    "credit to your account",
+]
+
 
 # ══════════════════════════════════════════════
-# SCORING FUNCTIONS
+# SCORING HELPERS
 # ══════════════════════════════════════════════
 
 def _contains_any(text: str, phrases: list[str]) -> bool:
@@ -85,158 +96,150 @@ def _contains_any(text: str, phrases: list[str]) -> bool:
     return any(phrase.lower() in text_lower for phrase in phrases)
 
 
-def _count_matches(text: str, phrases: list[str]) -> int:
-    """Count how many phrases are found in the text."""
+def _check_ordering(text: str, first_keywords: list[str], second_keywords: list[str]) -> bool:
+    """Returns True if any keyword from second_keywords appears BEFORE first_keywords."""
     text_lower = text.lower()
-    return sum(1 for phrase in phrases if phrase.lower() in text_lower)
+    # Find earliest match for first group
+    first_pos = min([text_lower.find(k.lower()) for k in first_keywords if k.lower() in text_lower] or [float('inf')])
+    # Find earliest match for second group
+    second_pos = min([text_lower.find(k.lower()) for k in second_keywords if k.lower() in text_lower] or [float('inf')])
+    
+    if first_pos != float('inf') and second_pos != float('inf'):
+        return second_pos < first_pos
+    return False
 
 
-# ──────────────────────────────────────────────
-# Empathy (0.0 – 0.3)
-# ──────────────────────────────────────────────
+# ══════════════════════════════════════════════
+# DIMENSION SCORING
+# ══════════════════════════════════════════════
 
-def empathy_score(response: str, customer_name: str) -> tuple[float, dict[str, str]]:
+def empathy_score(response: str, customer_name: str) -> tuple[float, str]:
     """Score empathy based on apology, acknowledgement, personalisation, closing."""
     score = 0.0
-    reasons: dict[str, str] = {}
+    details = []
 
-    # Apology present → +0.10
     if _contains_any(response, APOLOGY_PHRASES):
         score += 0.10
-        reasons["apology"] = "Apology phrase detected"
+        details.append("Apology detected")
     else:
-        reasons["apology"] = "No apology found"
+        details.append("Missing apology")
 
-    # Acknowledges frustration → +0.10
     if _contains_any(response, ACKNOWLEDGEMENT_PHRASES):
         score += 0.10
-        reasons["acknowledgement"] = "Frustration acknowledged"
+        details.append("Frustration acknowledged")
     else:
-        reasons["acknowledgement"] = "No acknowledgement of frustration"
+        details.append("Missing acknowledgement")
 
-    # Uses customer name → +0.05
     if customer_name.lower() in response.lower():
         score += 0.05
-        reasons["personalisation"] = f"Customer name '{customer_name}' used"
+        details.append("Personalized with name")
     else:
-        reasons["personalisation"] = "Customer name not used"
+        details.append("Not personalized")
 
-    # Positive closing → +0.05
     if _contains_any(response, POSITIVE_CLOSING_PHRASES):
         score += 0.05
-        reasons["closing"] = "Positive closing detected"
+        details.append("Positive closing")
     else:
-        reasons["closing"] = "No positive closing"
+        details.append("No positive closing")
 
-    return round(score, 2), reasons
+    return round(score, 2), "; ".join(details)
 
 
-# ──────────────────────────────────────────────
-# Correctness (0.0 – 0.4)
-# ──────────────────────────────────────────────
-
-def correctness_score(response: str, task: Task) -> tuple[float, dict[str, str]]:
-    """Score based on whether the response addresses expected resolutions."""
+def correctness_score(response: str, task: Task) -> tuple[float, str, int, int]:
+    """Score based on resolutions matched (Ceiling: 0.5)."""
     rubric = task.rubric
-    reasons: dict[str, str] = {}
     matched = 0
     total = len(rubric.expected_resolutions)
+    details = []
 
-    for resolution_key in rubric.expected_resolutions:
-        keywords = rubric.resolution_keywords.get(resolution_key, [])
+    for res in rubric.expected_resolutions:
+        keywords = rubric.resolution_keywords.get(res, [])
         if _contains_any(response, keywords):
             matched += 1
-            reasons[resolution_key] = "✓ Addressed"
         else:
-            reasons[resolution_key] = "✗ Not addressed"
+            details.append(f"Missed: {res}")
 
-    # Base score: proportional to resolutions matched (Ceiling: 0.5)
     base = 0.5 * (matched / total) if total > 0 else 0.0
 
-    # Deduction for missed sub-issues (−0.03 each, but don't go below 0)
-    missed_subs = 0
-    for sub in rubric.sub_issues:
-        if sub.lower() not in response.lower():
-            missed_subs += 1
-
-    # Only penalise if there are sub_issues defined and most were missed
+    # Deduction for missed sub-issues
+    missed_subs = sum(1 for sub in rubric.sub_issues if sub.lower() not in response.lower())
     if rubric.sub_issues and missed_subs > len(rubric.sub_issues) // 2:
-        deduction = 0.03 * missed_subs
-        base = max(0.0, base - deduction)
-        reasons["sub_issues"] = f"Missed {missed_subs}/{len(rubric.sub_issues)} sub-issues"
+        base = max(0.0, base - (0.03 * missed_subs))
+        details.append(f"Missed sub-issues")
 
-    reasons["resolution_match"] = f"{matched}/{total} resolutions addressed"
-    return round(base, 2), reasons
+    summary = f"Matched {matched}/{total} resolutions"
+    if details:
+        summary += f" ({details[0]})"
+
+    return round(base, 2), summary, matched, total
 
 
-# ──────────────────────────────────────────────
-# Helpfulness (0.0 – 0.3)
-# ──────────────────────────────────────────────
-
-def helpfulness_score(response: str) -> tuple[float, dict[str, str]]:
-    """Score based on next steps, timeline, and follow-up information (Ceiling: 0.2)."""
+def helpfulness_score(response: str) -> tuple[float, str]:
+    """Score based on next steps, timeline, and follow-up (Ceiling: 0.2)."""
     score = 0.0
-    reasons: dict[str, str] = {}
+    details = []
 
-    # Clear next steps → +0.07
     if _contains_any(response, NEXT_STEP_PHRASES):
         score += 0.07
-        reasons["next_steps"] = "Next steps provided"
-    else:
-        reasons["next_steps"] = "No clear next steps"
-
-    # Timeline / ETA → +0.07
+        details.append("Steps")
     if _contains_any(response, TIMELINE_PHRASES):
         score += 0.07
-        reasons["timeline"] = "Timeline / ETA provided"
-    else:
-        reasons["timeline"] = "No timeline given"
-
-    # Follow-up / contact → +0.06
+        details.append("Timeline")
     if _contains_any(response, FOLLOWUP_PHRASES):
         score += 0.06
-        reasons["followup"] = "Follow-up / contact info provided"
-    else:
-        reasons["followup"] = "No follow-up offered"
+        details.append("Follow-up")
 
-    return round(score, 2), reasons
+    return round(score, 2), "Provided: " + ", ".join(details) if details else "Lacks actionable info"
 
 
-# ──────────────────────────────────────────────
-# Penalty (0.0 to −0.2)
-# ──────────────────────────────────────────────
-
-def penalty_score(response: str, task: Task) -> tuple[float, dict[str, str]]:
-    """Apply penalties for low-effort, irrelevant, or rude responses."""
+def penalty_score(response: str, task: Task, cor_score: float, hlp_score: float) -> tuple[float, str]:
+    """Apply penalties for low-effort, irrelevant, or flawed logic."""
     penalty = 0.0
-    reasons: dict[str, str] = {}
+    details = []
+    text_len = len(response.strip())
 
-    # Too short (< 50 chars) → −0.10
-    if len(response.strip()) < 50:
-        penalty -= 0.10
-        reasons["too_short"] = f"Response too short ({len(response.strip())} chars)"
+    # 1. Length/Effort
+    if text_len < 50:
+        penalty -= 0.1
+        details.append("Too short")
 
-    # Forbidden phrases → −0.10
-    rubric = task.rubric
-    if rubric.forbidden_phrases and _contains_any(response, rubric.forbidden_phrases):
-        penalty -= 0.10
-        reasons["forbidden"] = "Contains forbidden/dismissive phrasing"
+    # 2. Forbidden phrases
+    if task.rubric.forbidden_phrases and _contains_any(response, task.rubric.forbidden_phrases):
+        penalty -= 0.1
+        details.append("Forbidden phrases")
 
-    # Completely irrelevant (doesn't mention ANY key terms from the task) → −0.20
-    all_keywords = []
-    for kw_list in rubric.resolution_keywords.values():
-        all_keywords.extend(kw_list)
+    # 3. Irrelevance
+    all_keywords = [kw for sub in task.rubric.resolution_keywords.values() for kw in sub]
+    if text_len > 20 and not _contains_any(response, all_keywords):
+        penalty -= 0.2
+        details.append("Irrelevant content")
 
-    if not _contains_any(response, all_keywords) and len(response.strip()) > 20:
-        penalty -= 0.20
-        reasons["irrelevant"] = "Response appears completely off-topic"
+    # 4. Anti-Bluffing (High helpfulness but zero correctness)
+    if cor_score < 0.2 and hlp_score > 0.15:
+        penalty -= 0.1
+        details.append("Bluffing (highhelpful/lowcorrect)")
 
-    # Cap at -0.2
-    penalty = max(-0.2, penalty)
-    if not reasons:
-        reasons["penalty"] = "No penalties applied"
+    # 5. Generic Phrasing (Fluff without resolution)
+    if _contains_any(response, GENERIC_PHRASES) and cor_score < 0.1:
+        penalty -= 0.1
+        details.append("Generic fluff")
 
-    return round(penalty, 2), reasons
+    # 6. Task-Specific Ordering Penalty (Security first!)
+    if task.task_id == "hard_002":
+        if _check_ordering(response, SECURITY_KEYWORDS, REFUND_KEYWORDS):
+            penalty -= 0.1
+            details.append("Ordering error (refund before security)")
+
+    # 7. Consistency Check (sounds nice but useless)
+    if task.observation.difficulty == "hard":
+        # If empathy is high but correctness is critically low
+        if _contains_any(response, APOLOGY_PHRASES) and cor_score < 0.15:
+            penalty -= 0.1
+            details.append("Consistency failure (polite but empty)")
+
+    # Clamp penalty to -0.3 max (prevent unrealistic collapse)
+    clamped_penalty = max(-0.3, penalty)
+    return round(clamped_penalty, 2), ", ".join(details) if details else "None"
 
 
 # ══════════════════════════════════════════════
@@ -244,75 +247,67 @@ def penalty_score(response: str, task: Task) -> tuple[float, dict[str, str]]:
 # ══════════════════════════════════════════════
 
 def grade_response(response: str, task: Task) -> RewardBreakdown:
-    """
-    Grade an agent's response against a task rubric.
-    Returns a RewardBreakdown with scores per dimension and total.
-    """
-    customer_name = task.observation.customer.name
+    """Grade response with strict gating and structured reasoning."""
     difficulty = task.observation.difficulty
 
-    # 1. Calculate raw scores
-    emp_score, emp_reasons = empathy_score(response, customer_name)
-    cor_score, cor_reasons = correctness_score(response, task)
-    hlp_score, hlp_reasons = helpfulness_score(response)
-    pen_score, pen_reasons = penalty_score(response, task)
+    # 1. Raw scores
+    emp_score, emp_det = empathy_score(response, task.observation.customer.name)
+    cor_score, cor_det, matched, total_res = correctness_score(response, task)
+    hlp_score, hlp_det = helpfulness_score(response)
+    
+    # 2. Penalties
+    pen_score, pen_det = penalty_score(response, task, cor_score, hlp_score)
 
-    # 2. Add Coverage Penalties
-    matched = 0
-    total_resolutions = len(task.rubric.expected_resolutions)
-    for res in task.rubric.expected_resolutions:
-        if _contains_any(response, task.rubric.resolution_keywords.get(res, [])):
-            matched += 1
-
-    # Minimum Coverage Penalty: Matched < 50% → -0.1
-    if total_resolutions > 0 and matched < total_resolutions / 2:
-        pen_score -= 0.1
-        pen_reasons["coverage_penalty"] = f"Low resolution coverage ({matched}/{total_resolutions})"
-
-    # Structure-based Anti-Generic Check: "Sounds helpful but zero correctness" → -0.1
-    if cor_score < 0.2 and hlp_score > 0.15:
-        pen_score -= 0.1
-        pen_reasons["anti_generic"] = "High helpfulness but dangerously low correctness (bluffing)"
-
-    # Hard Generic Phrase Penalty
-    if _contains_any(response, GENERIC_PHRASES):
-        # Only penalise if no actual resolution was found
-        if cor_score < 0.1:
-            pen_score -= 0.1
-            pen_reasons["generic_phrasing"] = "Used generic fluff without specific resolutions"
+    # Coverage Penalty (matched < 50% resolutions)
+    if total_res > 0 and matched < total_res / 2:
+        pen_score = max(-0.3, pen_score - 0.1)
+        pen_det += "; Low coverage"
 
     # 3. Sum total
     total = emp_score + cor_score + hlp_score + pen_score
 
-    # 4. Apply Hard Gating (The "Correctness Gate")
+    # 4. Apply Gating Logic
+    multiplier = 1.0
+    gating_reason = ""
+
+    # Correctness Gates
     if cor_score < 0.2:
-        total *= 0.5
-        cor_reasons["gating"] = "Low correctness multiplier (x0.5) applied"
+        multiplier = 0.5
+        gating_reason = "Correctness Gate (x0.5)"
     
     if cor_score < 0.1:
-        total *= 0.3
-        cor_reasons["gating"] = "Critical correctness failure multiplier (x0.3) applied"
+        multiplier = 0.3
+        gating_reason = "Critical Failure Gate (x0.3)"
 
-    # 5. Hard Task Booster (Secret Weapon)
+    # Task Booster / Throttler
     if difficulty == "hard" and cor_score < 0.3:
-        total *= 0.7
-        cor_reasons["hard_task_gating"] = "Hard task correctness requirement not met (x0.7) applied"
+        multiplier = min(multiplier, 0.7)
+        gating_reason = "Hard Task Throttler (x0.7)"
+    
+    if difficulty == "medium" and cor_score < 0.3:
+        multiplier = min(multiplier, 0.8)
+        gating_reason = "Medium Task Throttler (x0.8)"
 
-    # Clamp and round
-    total = round(max(0.0, min(1.0, total)), 2)
+    total *= multiplier
 
-    # Merge all reasoning
-    reasoning = {}
-    reasoning.update({f"empathy_{k}": v for k, v in emp_reasons.items()})
-    reasoning.update({f"correctness_{k}": v for k, v in cor_reasons.items()})
-    reasoning.update({f"helpfulness_{k}": v for k, v in hlp_reasons.items()})
-    reasoning.update({f"penalty_{k}": v for k, v in pen_reasons.items()})
+    # 5. Finalize
+    final_total = round(max(0.0, min(1.0, total)), 2)
+
+    # Build Structured Reasoning
+    reasoning = {
+        "empathy": {"score": emp_score, "details": emp_det},
+        "correctness": {"score": cor_score, "details": cor_det},
+        "helpfulness": {"score": hlp_score, "details": hlp_det},
+        "penalty": {"score": pen_score, "details": pen_det},
+    }
+    if gating_reason:
+        reasoning["gating"] = {"multiplier": multiplier, "details": gating_reason}
 
     return RewardBreakdown(
         empathy_score=emp_score,
         correctness_score=cor_score,
         helpfulness_score=hlp_score,
         penalty=pen_score,
-        total=total,
+        total=final_total,
         reasoning=reasoning,
     )

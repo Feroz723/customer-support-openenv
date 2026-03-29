@@ -210,10 +210,17 @@ def main():
 
             print(f"\n  ── SCORES ──", flush=True)
             print(f"  Empathy:      {breakdown.empathy_score:.2f} / 0.30", flush=True)
-            print(f"  Correctness:  {breakdown.correctness_score:.2f} / 0.40", flush=True)
-            print(f"  Helpfulness:  {breakdown.helpfulness_score:.2f} / 0.30", flush=True)
+            print(f"  Correctness:  {breakdown.correctness_score:.2f} / 0.50", flush=True)
+            print(f"  Helpfulness:  {breakdown.helpfulness_score:.2f} / 0.20", flush=True)
             print(f"  Penalty:      {breakdown.penalty:.2f}", flush=True)
             print(f"  TOTAL:        {score:.2f} / 1.00", flush=True)
+
+            print(f"\n  ── REASONING ──", flush=True)
+            for dim, info in breakdown.reasoning.items():
+                if isinstance(info, dict):
+                    print(f"  {dim.capitalize():<12}: {info.get('details')}", flush=True)
+                else:
+                    print(f"  {dim.capitalize():<12}: {info}", flush=True)
 
             results.append({
                 "task_id": task_id,
@@ -223,6 +230,7 @@ def main():
                 "correctness": breakdown.correctness_score,
                 "helpfulness": breakdown.helpfulness_score,
                 "penalty": breakdown.penalty,
+                "reasoning": breakdown.reasoning,
                 "response_length": len(response_text),
             })
 

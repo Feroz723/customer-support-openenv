@@ -302,6 +302,102 @@ TASKS["hard_001"] = Task(
 
 
 # ──────────────────────────────────────────────
+# HARD — Security Breach + Billing Error
+# ──────────────────────────────────────────────
+
+TASKS["hard_002"] = Task(
+    task_id="hard_002",
+    observation=Observation(
+        ticket_id="TKT-20260328-0004",
+        user_query=(
+            "I checked my account this morning and I'm LIVID. There was an unauthorized "
+            "login from a location I don't recognize, and now I see a DOUBLE charge of $149.99 "
+            "for my recent order #ORD-44912. This is a massive security failure! "
+            "I want my money back for BOTH charges immediately and my account deleted. "
+            "How could you let this happen? I don't feel safe using NovaMart anymore."
+        ),
+        sentiment="angry",
+        category="security_billing",
+        difficulty="hard",
+        customer=CustomerProfile(
+            name="Sarah Jenkins",
+            tier="enterprise",
+            account_age_months=48,
+        ),
+        order=OrderDetails(
+            order_id="ORD-44912",
+            items=["NovaHome Smart Security Hub"],
+            status="delivered",
+            expected_delivery="March 20, 2026",
+            tracking_number="NVM-TRK-990123",
+        ),
+        history=InteractionHistory(previous_tickets=0, escalation_count=0),
+        internal_notes=[
+            "Confirmed unauthorized login from unknown IP yesterday.",
+            "Double charge: system error during payment processing. Refund authorized for ONE charge.",
+            "DO NOT delete account immediately if possible; try to secure it first.",
+            "Policy: Data breach requires password reset and 2FA activation before any financial settlements.",
+            "Authorized: $50 'Peace of Mind' credit if security steps are completed.",
+        ],
+        company_policies={
+            "security_breach": (
+                "In cases of unauthorized access, the agent MUST first instruct the "
+                "customer to reset their password and enable Two-Factor Authentication (2FA). "
+                "Account billing issues will be addressed ONLY after the account is secured."
+            ),
+            "refund_billing": (
+                "Duplicate charges are investigated and refunded within 3-5 business days. "
+                "Instant refunds are NOT permitted for security-related cases."
+            ),
+        },
+    ),
+    rubric=TaskRubric(
+        expected_resolutions=[
+            "APOLOGIZE_SECURITY",
+            "SECURITY_ACTION",
+            "ACKNOWLEDGE_BILLING",
+            "EXPLAIN_INVESTIGATION",
+            "COMPENSATION",
+        ],
+        resolution_keywords={
+            "APOLOGIZE_SECURITY": [
+                "security concern", "unauthorized access", "deeply apologize",
+                "take security seriously", "safety is our priority",
+                "understand your alarm", "sorry for the breach",
+            ],
+            "SECURITY_ACTION": [
+                "reset your password", "enable 2fa", "two-factor authentication",
+                "secure your account", "immediately reset", "password update",
+                "freeze account",
+            ],
+            "ACKNOWLEDGE_BILLING": [
+                "double charge", "$149.99", "duplicate payment",
+                "erroneous charge", "billing error",
+            ],
+            "EXPLAIN_INVESTIGATION": [
+                "investigate the charge", "3-5 business days", "review the duplicate",
+                "not an instant refund", "requires a review", "refund timeline",
+            ],
+            "COMPENSATION": [
+                "$50", "peace of mind credit", "store credit", "goodwill",
+                "compensation", "apology credit",
+            ],
+        },
+        sub_issues=[
+            "security_breach", "double_charge", "account_deletion_request",
+            "compliance",
+        ],
+        forbidden_phrases=[
+            "not a big deal",
+            "you must have shared your password",
+            "we can't help with security",
+            "just a glitch",
+        ],
+    ),
+)
+
+
+# ──────────────────────────────────────────────
 # Registry helpers
 # ──────────────────────────────────────────────
 
