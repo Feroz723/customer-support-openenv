@@ -9,11 +9,13 @@ Usage:
     set HF_TOKEN=hf_...
     python inference.py
 """
+print("=== CONTAINER STARTED ===", flush=True)
 
 from __future__ import annotations
 import os
 import sys
 import json
+import time
 
 from openai import OpenAI
 
@@ -21,17 +23,18 @@ from environment import CustomerSupportEnv
 from models import Action
 from tasks import list_task_ids
 
+print("=== IMPORTS SUCCESS ===", flush=True)
 
 # ══════════════════════════════════════════════
 # CONFIGURATION
 # ══════════════════════════════════════════════
 
 # Debug prints to verify environment variables inside the container
-print("DEBUG ENV:")
+print("DEBUG ENV:", flush=True)
 api_env = os.getenv("API_BASE_URL")
-print(f"  API_BASE_URL (env): {api_env}")
-print(f"  MODEL_NAME:   {os.getenv('MODEL_NAME')}")
-print(f"  HF_TOKEN exists: {bool(os.getenv('HF_TOKEN'))}")
+print(f"  API_BASE_URL (env): {api_env}", flush=True)
+print(f"  MODEL_NAME:   {os.getenv('MODEL_NAME')}", flush=True)
+print(f"  HF_TOKEN exists: {bool(os.getenv('HF_TOKEN'))}", flush=True)
 
 # Use env vars with fallbacks (Updated to new HF router endpoint)
 API_BASE_URL = api_env or "https://router.huggingface.co/v1"
@@ -124,18 +127,20 @@ def build_prompt(obs) -> list[dict]:
 def call_llm(client: OpenAI, messages: list[dict]) -> str:
     """Call the LLM and return the response text."""
     try:
+        print("=== BEFORE LLM CALL ===", flush=True)
         completion = client.chat.completions.create(
             model=MODEL_NAME,
             messages=messages,
             temperature=TEMPERATURE,
             max_tokens=MAX_TOKENS,
         )
+        print("=== LLM CALL SUCCESS ===", flush=True)
         return completion.choices[0].message.content.strip()
     except Exception as e:
         error_msg = str(e)
         if hasattr(e, 'response') and hasattr(e.response, 'text'):
             error_msg += f" | Body: {e.response.text}"
-        print(f"  ⚠ LLM API error: {type(e).__name__}: {error_msg}")
+        print(f"  ⚠ LLM API error: {type(e).__name__}: {error_msg}", flush=True)
         return ""
 
 
@@ -144,119 +149,128 @@ def call_llm(client: OpenAI, messages: list[dict]) -> str:
 # ══════════════════════════════════════════════
 
 def main():
-    # ── Validate config ──
-    if not HF_TOKEN:
-        raise ValueError("❌ ERROR: HF_TOKEN is missing or empty. Please set it in HF Space Secrets.")
+    try:
+        # ── Validate config ──
+        if not HF_TOKEN:
+            raise ValueError("❌ ERROR: HF_TOKEN is missing or empty. Please set it in HF Space Secrets.")
 
-    print("=" * 60)
-    print("CUSTOMER SUPPORT RESOLUTION — INFERENCE")
-    print("=" * 60)
-    print(f"  API Base: {API_BASE_URL}")
-    print(f"  Model:    {MODEL_NAME}")
-    print(f"  Token:    {HF_TOKEN[:8]}...{HF_TOKEN[-4:]}")
-    print()
+        print("=" * 60, flush=True)
+        print("CUSTOMER SUPPORT RESOLUTION — INFERENCE", flush=True)
+        print("=" * 60, flush=True)
+        print(f"  API Base: {API_BASE_URL}", flush=True)
+        print(f"  Model:    {MODEL_NAME}", flush=True)
+        print(f"  Token:    {HF_TOKEN[:8]}...{HF_TOKEN[-4:]}", flush=True)
+        print(flush=True)
 
-    # ── Init client ──
-    client = OpenAI(
-        base_url=API_BASE_URL,
-        api_key=HF_TOKEN,
-    )
+        # ── Init client ──
+        client = OpenAI(
+            base_url=API_BASE_URL,
+            api_key=HF_TOKEN,
+        )
 
-    # ── Init environment ──
-    env = CustomerSupportEnv()
-    task_ids = list_task_ids()
+        # ── Init environment ──
+        env = CustomerSupportEnv()
+        task_ids = list_task_ids()
 
-    results = []
+        results = []
 
-    # ── Run each task ──
-    for task_id in task_ids:
-        print(f"{'─' * 60}")
-        print(f"▶ Task: {task_id}")
+        # ── Run each task ──
+        for task_id in task_ids:
+            print(f"{'─' * 60}", flush=True)
+            print(f"▶ Task: {task_id}", flush=True)
 
-        # 1. Reset environment
-        obs = env.reset(task_id=task_id)
-        print(f"  Difficulty: {obs.difficulty}")
-        print(f"  Customer:   {obs.customer.name} ({obs.customer.tier})")
-        print(f"  Sentiment:  {obs.sentiment}")
-        print(f"  Query:      {obs.user_query[:80]}...")
+            # 1. Reset environment
+            obs = env.reset(task_id=task_id)
+            print(f"  Difficulty: {obs.difficulty}", flush=True)
+            print(f"  Customer:   {obs.customer.name} ({obs.customer.tier})", flush=True)
+            print(f"  Sentiment:  {obs.sentiment}", flush=True)
+            print(f"  Query:      {obs.user_query[:80]}...", flush=True)
 
-        # 2. Build prompt
-        messages = build_prompt(obs)
+            # 2. Build prompt
+            messages = build_prompt(obs)
 
-        # 3. Call LLM
-        print(f"  Calling LLM...")
-        response_text = call_llm(client, messages)
+            # 3. Call LLM
+            print(f"  Calling LLM...", flush=True)
+            response_text = call_llm(client, messages)
 
-        if not response_text:
-            print("  ⚠ Empty response from LLM — skipping.")
-            results.append({"task_id": task_id, "score": 0.0, "error": "empty_response"})
-            continue
+            if not response_text:
+                print("  ⚠ Empty response from LLM — skipping.", flush=True)
+                results.append({"task_id": task_id, "score": 0.0, "error": "empty_response"})
+                continue
 
-        print(f"  Response:   {response_text[:100]}...")
-        print(f"  Length:     {len(response_text)} chars")
+            print(f"  Response:   {response_text[:100]}...", flush=True)
+            print(f"  Length:     {len(response_text)} chars", flush=True)
 
-        # 4. Step environment with agent response
-        action = Action(response=response_text)
-        obs_result = env.step(action)
+            # 4. Step environment with agent response
+            action = Action(response=response_text)
+            obs_result = env.step(action)
 
-        # 5. Collect reward
-        breakdown = obs_result.reward_breakdown
-        score = obs_result.reward
+            # 5. Collect reward
+            breakdown = obs_result.reward_breakdown
+            score = obs_result.reward
 
-        print(f"\n  ── SCORES ──")
-        print(f"  Empathy:      {breakdown.empathy_score:.2f} / 0.30")
-        print(f"  Correctness:  {breakdown.correctness_score:.2f} / 0.40")
-        print(f"  Helpfulness:  {breakdown.helpfulness_score:.2f} / 0.30")
-        print(f"  Penalty:      {breakdown.penalty:.2f}")
-        print(f"  TOTAL:        {score:.2f} / 1.00")
+            print(f"\n  ── SCORES ──", flush=True)
+            print(f"  Empathy:      {breakdown.empathy_score:.2f} / 0.30", flush=True)
+            print(f"  Correctness:  {breakdown.correctness_score:.2f} / 0.40", flush=True)
+            print(f"  Helpfulness:  {breakdown.helpfulness_score:.2f} / 0.30", flush=True)
+            print(f"  Penalty:      {breakdown.penalty:.2f}", flush=True)
+            print(f"  TOTAL:        {score:.2f} / 1.00", flush=True)
 
-        results.append({
-            "task_id": task_id,
-            "difficulty": obs.difficulty,
-            "score": score,
-            "empathy": breakdown.empathy_score,
-            "correctness": breakdown.correctness_score,
-            "helpfulness": breakdown.helpfulness_score,
-            "penalty": breakdown.penalty,
-            "response_length": len(response_text),
-        })
+            results.append({
+                "task_id": task_id,
+                "difficulty": obs.difficulty,
+                "score": score,
+                "empathy": breakdown.empathy_score,
+                "correctness": breakdown.correctness_score,
+                "helpfulness": breakdown.helpfulness_score,
+                "penalty": breakdown.penalty,
+                "response_length": len(response_text),
+            })
 
-    # ── Summary ──
-    print(f"\n{'=' * 60}")
-    print("RESULTS SUMMARY")
-    print(f"{'=' * 60}")
-    print(f"{'Task':<12} {'Difficulty':<10} {'Score':<8}")
-    print(f"{'─' * 30}")
+        # ── Summary ──
+        print(f"\n{'=' * 60}", flush=True)
+        print("RESULTS SUMMARY", flush=True)
+        print(f"{'=' * 60}", flush=True)
+        print(f"{'Task':<12} {'Difficulty':<10} {'Score':<8}", flush=True)
+        print(f"{'─' * 30}", flush=True)
 
-    total_score = 0.0
-    for r in results:
-        score = r.get("score", 0.0)
-        diff = r.get("difficulty", "?")
-        print(f"{r['task_id']:<12} {diff:<10} {score:.2f}")
-        total_score += score
+        total_score = 0.0
+        for r in results:
+            score = r.get("score", 0.0)
+            diff = r.get("difficulty", "?")
+            print(f"{r['task_id']:<12} {diff:<10} {score:.2f}", flush=True)
+            total_score += score
 
-    avg_score = total_score / len(results) if results else 0.0
-    print(f"{'─' * 30}")
-    print(f"{'AVERAGE':<22} {avg_score:.2f}")
-    print()
+        avg_score = total_score / len(results) if results else 0.0
+        print(f"{'─' * 30}", flush=True)
+        print(f"{'AVERAGE':<22} {avg_score:.2f}", flush=True)
+        print(flush=True)
 
-    # ── Save results to JSON ──
-    output_file = "inference_results.json"
-    with open(output_file, "w") as f:
-        json.dump({
-            "model": MODEL_NAME,
-            "temperature": TEMPERATURE,
-            "max_tokens": MAX_TOKENS,
-            "results": results,
-            "average_score": round(avg_score, 4),
-        }, f, indent=2)
-    print(f"📄 Results saved to {output_file}")
+        # ── Save results to JSON ──
+        output_file = "inference_results.json"
+        with open(output_file, "w") as f:
+            json.dump({
+                "model": MODEL_NAME,
+                "temperature": TEMPERATURE,
+                "max_tokens": MAX_TOKENS,
+                "results": results,
+                "average_score": round(avg_score, 4),
+            }, f, indent=2)
+        print(f"📄 Results saved to {output_file}", flush=True)
 
-    # ── Cleanup ──
-    env.close()
-    print("✅ Inference complete.")
+        # ── Cleanup ──
+        env.close()
+        print("✅ Inference complete.", flush=True)
+        
+        # Keep container alive briefly so logs are captured
+        time.sleep(5)
 
-    return avg_score
+        return avg_score
+    except Exception as e:
+        print(f"FATAL ERROR: {type(e).__name__}: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
