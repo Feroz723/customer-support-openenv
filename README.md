@@ -1,3 +1,14 @@
+---
+title: Customer Support OpenEnv
+emoji: 🎧
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_port: 7860
+tags:
+  - openenv
+---
+
 # Customer Support Resolution (OpenEnv)
 
 This environment is designed to distinguish between **surface-level fluency** and **true problem-solving ability** in AI customer support agents.
