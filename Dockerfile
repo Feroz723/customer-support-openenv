@@ -6,18 +6,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all project files
-COPY models.py .
-COPY tasks.py .
-COPY grading.py .
-COPY environment.py .
-COPY inference.py .
-COPY api.py .
-COPY openenv.yaml .
-COPY README.md .
+# Copy ALL project files
+COPY . /app
 
 # HF Space requires port 7860
 EXPOSE 7860
 
-# Run the FastAPI server
+# Run the FastAPI server — must stay alive
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "7860"]
