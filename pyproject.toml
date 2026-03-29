@@ -1,7 +1,7 @@
 [project]
 name = "customer-support-openenv"
 version = "0.1.0"
-description = "Customer Support OpenEnv Environment for evaluation"
+description = "OpenEnv customer support environment"
 authors = [
   { name = "Feroz" }
 ]
@@ -9,8 +9,13 @@ dependencies = [
   "fastapi",
   "uvicorn",
   "pydantic",
-  "openai"
+  "openai",
+  "openenv>=0.2.0"
 ]
 
+[project.scripts]
+server = "server.app:app"
+
 [tool.setuptools]
-py-modules = ["api", "environment", "models", "tasks", "grading", "inference"]
+py-modules = ["environment", "models", "tasks", "grading", "inference"]
+packages = ["server"]
