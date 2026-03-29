@@ -71,8 +71,8 @@ class CustomerSupportEnv:
         # Build initial observation (deep copy so task data stays clean)
         self._observation = copy.deepcopy(self._task.observation)
         self._observation.done = False
-        self._observation.reward = None
-        self._observation.reward_breakdown = None
+        self._observation.reward = 0.0
+        self._observation.reward_breakdown = RewardBreakdown()
         self._observation.step_count = 0
         self._observation.max_steps = self._max_steps
 

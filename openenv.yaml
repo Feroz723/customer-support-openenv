@@ -38,11 +38,11 @@ reward:
     - name: empathy
       weight: 0.3
     - name: correctness
-      weight: 0.4
+      weight: 0.5
     - name: helpfulness
-      weight: 0.3
+      weight: 0.2
     - name: penalty
-      weight: -0.2
+      weight: -0.3
 
 tags:
   - customer-support

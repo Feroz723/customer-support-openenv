@@ -6,13 +6,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project files
+# Copy all project files
 COPY models.py .
 COPY tasks.py .
 COPY grading.py .
 COPY environment.py .
 COPY inference.py .
 COPY api.py .
+COPY openenv.yaml .
+COPY README.md .
 
 # HF Space requires port 7860
 EXPOSE 7860
