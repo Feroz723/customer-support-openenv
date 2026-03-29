@@ -1,7 +1,7 @@
 """
 Task definitions for the Customer Support Resolution Environment.
-3 tasks: easy, medium, hard — all single-turn.
-Company: NovaMart (fictional e-commerce retailer).
+Contains 4 tasks (Easy, Medium, Hard, Hard-Security) for evaluation.
+Company: NovaMart (Fictional E-commerce Retailer).
 """
 
 from __future__ import annotations
@@ -192,7 +192,7 @@ TASKS["med_001"] = Task(
 )
 
 # ──────────────────────────────────────────────
-# HARD — Angry User + Multiple Failures
+# HARD — Repeated Service Failure (hard_001)
 # ──────────────────────────────────────────────
 
 TASKS["hard_001"] = Task(
@@ -302,7 +302,7 @@ TASKS["hard_001"] = Task(
 
 
 # ──────────────────────────────────────────────
-# HARD — Security Breach + Billing Error
+# HARD — Security Breach & Billing Error (hard_002)
 # ──────────────────────────────────────────────
 
 TASKS["hard_002"] = Task(

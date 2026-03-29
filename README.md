@@ -1,166 +1,64 @@
----
-title: Customer Support OpenEnv
-emoji: 🤖
-colorFrom: blue
-colorTo: green
-sdk: docker
-pinned: false
----
+# Customer Support Resolution (OpenEnv)
 
-# Customer Support Resolution Environment
+This environment is designed to distinguish between **surface-level fluency** and **true problem-solving ability** in AI customer support agents.
 
-A production-grade OpenEnv environment that simulates realistic customer support interactions for AI agent evaluation. Built for the NovaMart e-commerce platform.
+Build for evaluation of autonomous agents in a realistic e-commerce (NovaMart) setting.
 
-## Overview
+## 🚀 Overview
 
-An AI agent receives a customer complaint (delayed order, refund request, damaged item, etc.) and must generate an appropriate support response. The environment **deterministically grades** the response on empathy, correctness, and helpfulness — producing a score from 0.0 to 1.0.
-
-No LLM is used in the grading loop. Same input → same output, always.
+AI agents receive customer support tickets containing query text, sentiment, order history, and company policies. The agent must provide a response that resolves the customer's issues while adhering to strict logical and safety constraints.
 
 ---
 
-## Tasks
+## 🛡️ Why This Environment is Robust
+
+Unlike naive benchmarks, this system uses a **Deterministic Grading Engine** to prevent reward inflation and ensure reproducible results.
+
+- **Correctness Gating**: Substantially reduces rewards if core resolutions are missed, regardless of tone. 
+- **Anti-Bluffing Logic**: Detects and penalizes "helpfulness-sounding" responses that contain no actual resolution steps.
+- **Ordering Constraints**: Evaluates logical priority (e.g., Security reset MUST precede financial refund).
+- **Audit-Ready Reasoning**: Returns structural feedback for every scoring dimension for transparency.
+
+---
+
+## 📋 Task Scenarios
 
 | Task ID | Difficulty | Scenario |
-|---|---|---|
-| `easy_001` | Easy | Customer reports a delayed Bluetooth speaker order |
-| `med_001` | Medium | Customer wants a refund for one item + expedited shipping for another |
-| `hard_001` | Hard | Angry repeat customer — damaged item, missing refund, chargeback threat |
-
-Each task includes realistic context: customer profile, order details, interaction history, internal notes, and relevant company policies.
-
----
-
-## Observation (what the agent sees)
-
-After calling `reset()`, the agent receives:
-
-| Field | Type | Description |
-|---|---|---|
-| `ticket_id` | string | Support ticket ID |
-| `user_query` | string | The customer's message |
-| `sentiment` | string | `neutral`, `frustrated`, `angry`, or `anxious` |
-| `category` | string | Issue category (e.g. `delayed_order`) |
-| `difficulty` | string | `easy`, `medium`, or `hard` |
-| `customer` | object | Name, tier, account age |
-| `order` | object | Order ID, items, status, delivery date |
-| `history` | object | Previous tickets, escalation count |
-| `internal_notes` | list | Internal info visible to the agent |
-| `company_policies` | dict | Relevant policy excerpts |
+| :--- | :--- | :--- |
+| `easy_001` | Easy | Simple shipping delay apology and status update. |
+| `med_001` | Medium | Multi-part request: refund for one item, expedited shipping for another. |
+| `hard_001` | Hard | Repeated service failures, damaged items, and chargeback threats. |
+| `hard_002` | Hard | **Security Breach**: unauthorized access requiring safe recovery before billing. |
 
 ---
 
-## Action (what the agent sends)
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `response` | string | Yes | The agent's text response to the customer (1–2000 chars) |
-| `proposed_resolution` | string | No | Optional structured resolution code |
-| `escalate` | bool | No | Whether to escalate the case |
-
----
-
-## Scoring
-
-Responses are graded across 4 dimensions:
-
-| Dimension | Max Score | What it measures |
-|---|---|---|
-| **Empathy** | 0.30 | Apology, acknowledgement, personalisation, positive closing |
-| **Correctness** | 0.40 | Addresses expected resolutions, follows company policy |
-| **Helpfulness** | 0.30 | Clear next steps, timeline, follow-up info |
-| **Penalty** | −0.20 | Off-topic, too short, forbidden/dismissive phrasing |
-
-**Final score** = `empathy + correctness + helpfulness + penalty`, clamped to `[0.0, 1.0]`.
-
-All scoring is keyword-based and fully deterministic.
-
----
-
-## Quick Start
+## ⚙️ How to Run
 
 ### Local
-
 ```bash
 pip install -r requirements.txt
-
-# Run smoke test
-python environment.py
-
-# Run inference (requires HuggingFace token)
-export API_BASE_URL="https://api-inference.huggingface.co/v1"
-export MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
-export HF_TOKEN="hf_your_token_here"
 python inference.py
 ```
+*Requires `HF_TOKEN` in environment for inference.*
 
 ### Docker
-
 ```bash
 docker build -t support-env .
-
-docker run \
-  -e API_BASE_URL="https://api-inference.huggingface.co/v1" \
-  -e MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct" \
-  -e HF_TOKEN="hf_your_token_here" \
-  support-env
+docker run -e HF_TOKEN=your_token_here support-env
 ```
+
+### Hugging Face
+> Deploy this repository as a **Docker Space**. 
+> Set `HF_TOKEN`, `API_BASE_URL` (optional), and `MODEL_NAME` (optional) in **Settings > Variables and Secrets**.
 
 ---
 
-## Project Structure
-
-```
-customer-support-env/
-├── openenv.yaml         # OpenEnv manifest
-├── environment.py       # CustomerSupportEnv class (reset/step/state)
-├── models.py            # Pydantic data models (Observation, Action, RewardBreakdown)
-├── tasks.py             # 3 task definitions with grading rubrics
-├── grading.py           # Deterministic scoring engine
-├── inference.py         # LLM inference script
-├── requirements.txt     # Python dependencies
-├── Dockerfile           # Container setup
-└── README.md            # This file
-```
-
-### Why this environment is robust
-
-Unlike naive evaluation environments, this system is specifically designed to distinguish between **surface-level fluency** and **actual problem-solving ability**:
-
-- **Correctness Gating**: Prevents reward inflation by drastically reducing the final score if core resolutions are missed, regardless of how polite the agent sounds.
-- **Structure-Aware Penalties**: Detects and punishes "bluffing"—responses that use helpful-sounding templates but provide zero actual resolution.
-- **Deterministic Evaluation**: Uses a keyword-based grading engine to ensure identical inputs always result in identical, reproducible scores.
-- **Explainable Reasoning**: Every reward comes with a structured, audit-ready breakdown of scores and logic for transparency.
-- **Constraint-Aware Tasks**: Includes tasks (like `hard_002`) that enforce logical constraints, such as prioritizing security actions before financial settlements.
+## 🏗️ Project Structure
+- `environment.py`: OpenEnv Gymnasium implementation.
+- `grading.py`: Deterministic scoring logic and gating.
+- `tasks.py`: Structured task definitions and scenarios.
+- `inference.py`: Production-grade LLM evaluation loop.
+- `openenv.yaml`: OpenEnv manifest for automated validation.
 
 ---
-
-## API
-
-```python
-from environment import CustomerSupportEnv
-from models import Action
-
-env = CustomerSupportEnv()
-
-# Start a new episode
-obs = env.reset(task_id="easy_001")
-print(obs.user_query)
-
-# Agent responds
-result = env.step(Action(response="Dear James, I sincerely apologize..."))
-print(result.reward)             # 0.0 – 1.0
-print(result.reward_breakdown)   # per-dimension scores
-
-# Inspect state
-state = env.state()
-
-# Cleanup
-env.close()
-```
-
----
-
-## License
-
-MIT
+**License**: MIT

@@ -27,6 +27,10 @@ tasks:
     difficulty: hard
     description: Angry repeat customer with damaged item, missing refund, and chargeback threat
 
+  - id: hard_002
+    difficulty: hard
+    description: Security breach and billing error requiring strict priority ordering
+
 reward:
   type: deterministic
   range: [0.0, 1.0]
