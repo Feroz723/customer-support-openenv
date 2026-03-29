@@ -1,0 +1,47 @@
+name: customer-support-env
+description: >
+  AI environment for customer support resolution tasks.
+  Simulates realistic NovaMart e-commerce support scenarios where an AI agent
+  receives customer complaints and must respond appropriately.
+  Responses are graded deterministically on empathy, correctness, and helpfulness.
+
+version: 0.1.0
+
+entrypoint:
+  module: environment
+  class: CustomerSupportEnv
+
+observation_type: Observation
+action_type: Action
+
+tasks:
+  - id: easy_001
+    difficulty: easy
+    description: Customer reports a delayed order (single issue)
+
+  - id: med_001
+    difficulty: medium
+    description: Customer wants partial refund + remaining item shipped (multi-part issue)
+
+  - id: hard_001
+    difficulty: hard
+    description: Angry repeat customer with damaged item, missing refund, and chargeback threat
+
+reward:
+  type: deterministic
+  range: [0.0, 1.0]
+  dimensions:
+    - name: empathy
+      weight: 0.3
+    - name: correctness
+      weight: 0.4
+    - name: helpfulness
+      weight: 0.3
+    - name: penalty
+      weight: -0.2
+
+tags:
+  - customer-support
+  - nlp
+  - evaluation
+  - single-turn
