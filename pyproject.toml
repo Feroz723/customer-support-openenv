@@ -1,0 +1,16 @@
+[project]
+name = "customer-support-openenv"
+version = "0.1.0"
+description = "Customer Support OpenEnv Environment for evaluation"
+authors = [
+  { name = "Feroz" }
+]
+dependencies = [
+  "fastapi",
+  "uvicorn",
+  "pydantic",
+  "openai"
+]
+
+[tool.setuptools]
+py-modules = ["api", "environment", "models", "tasks", "grading", "inference"]
