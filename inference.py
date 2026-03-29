@@ -28,12 +28,13 @@ from tasks import list_task_ids
 
 # Debug prints to verify environment variables inside the container
 print("DEBUG ENV:")
-print(f"  API_BASE_URL: '{os.getenv('API_BASE_URL')}'")
-print(f"  MODEL_NAME:   '{os.getenv('MODEL_NAME')}'")
+api_env = os.getenv("API_BASE_URL")
+print(f"  API_BASE_URL (env): {api_env}")
+print(f"  MODEL_NAME:   {os.getenv('MODEL_NAME')}")
 print(f"  HF_TOKEN exists: {bool(os.getenv('HF_TOKEN'))}")
 
-# Use env vars with fallbacks
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://api-inference.huggingface.co/v1"
+# Use env vars with fallbacks (Updated to new HF router endpoint)
+API_BASE_URL = api_env or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "meta-llama/Llama-3.1-8B-Instruct"
 HF_TOKEN = os.getenv("HF_TOKEN")
 
@@ -131,7 +132,10 @@ def call_llm(client: OpenAI, messages: list[dict]) -> str:
         )
         return completion.choices[0].message.content.strip()
     except Exception as e:
-        print(f"  ⚠ LLM API error: {type(e).__name__}: {e}")
+        error_msg = str(e)
+        if hasattr(e, 'response') and hasattr(e.response, 'text'):
+            error_msg += f" | Body: {e.response.text}"
+        print(f"  ⚠ LLM API error: {type(e).__name__}: {error_msg}")
         return ""
 
 
@@ -147,9 +151,9 @@ def main():
     print("=" * 60)
     print("CUSTOMER SUPPORT RESOLUTION — INFERENCE")
     print("=" * 60)
-    print(f"  API Base: '{API_BASE_URL}'")
-    print(f"  Model:    '{MODEL_NAME}'")
-    print(f"  Token:    '{HF_TOKEN[:8]}...{HF_TOKEN[-4:]}'")
+    print(f"  API Base: {API_BASE_URL}")
+    print(f"  Model:    {MODEL_NAME}")
+    print(f"  Token:    {HF_TOKEN[:8]}...{HF_TOKEN[-4:]}")
     print()
 
     # ── Init client ──
