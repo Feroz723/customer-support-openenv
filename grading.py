@@ -66,6 +66,15 @@ FOLLOWUP_PHRASES = [
 ]
 
 
+GENERIC_PHRASES = [
+    "we will look into it",
+    "apologies for the inconvenience",
+    "apologize for the inconvenience",
+    "working on it",
+    "look into this for you",
+]
+
+
 # ══════════════════════════════════════════════
 # SCORING FUNCTIONS
 # ══════════════════════════════════════════════
@@ -141,8 +150,8 @@ def correctness_score(response: str, task: Task) -> tuple[float, dict[str, str]]
         else:
             reasons[resolution_key] = "✗ Not addressed"
 
-    # Base score: proportional to resolutions matched
-    base = 0.4 * (matched / total) if total > 0 else 0.0
+    # Base score: proportional to resolutions matched (Ceiling: 0.5)
+    base = 0.5 * (matched / total) if total > 0 else 0.0
 
     # Deduction for missed sub-issues (−0.03 each, but don't go below 0)
     missed_subs = 0
@@ -165,27 +174,27 @@ def correctness_score(response: str, task: Task) -> tuple[float, dict[str, str]]
 # ──────────────────────────────────────────────
 
 def helpfulness_score(response: str) -> tuple[float, dict[str, str]]:
-    """Score based on next steps, timeline, and follow-up information."""
+    """Score based on next steps, timeline, and follow-up information (Ceiling: 0.2)."""
     score = 0.0
     reasons: dict[str, str] = {}
 
-    # Clear next steps → +0.10
+    # Clear next steps → +0.07
     if _contains_any(response, NEXT_STEP_PHRASES):
-        score += 0.10
+        score += 0.07
         reasons["next_steps"] = "Next steps provided"
     else:
         reasons["next_steps"] = "No clear next steps"
 
-    # Timeline / ETA → +0.10
+    # Timeline / ETA → +0.07
     if _contains_any(response, TIMELINE_PHRASES):
-        score += 0.10
+        score += 0.07
         reasons["timeline"] = "Timeline / ETA provided"
     else:
         reasons["timeline"] = "No timeline given"
 
-    # Follow-up / contact → +0.10
+    # Follow-up / contact → +0.06
     if _contains_any(response, FOLLOWUP_PHRASES):
-        score += 0.10
+        score += 0.06
         reasons["followup"] = "Follow-up / contact info provided"
     else:
         reasons["followup"] = "No follow-up offered"
@@ -238,16 +247,58 @@ def grade_response(response: str, task: Task) -> RewardBreakdown:
     """
     Grade an agent's response against a task rubric.
     Returns a RewardBreakdown with scores per dimension and total.
-    Fully deterministic — same input always produces same output.
     """
     customer_name = task.observation.customer.name
+    difficulty = task.observation.difficulty
 
+    # 1. Calculate raw scores
     emp_score, emp_reasons = empathy_score(response, customer_name)
     cor_score, cor_reasons = correctness_score(response, task)
     hlp_score, hlp_reasons = helpfulness_score(response)
     pen_score, pen_reasons = penalty_score(response, task)
 
+    # 2. Add Coverage Penalties
+    matched = 0
+    total_resolutions = len(task.rubric.expected_resolutions)
+    for res in task.rubric.expected_resolutions:
+        if _contains_any(response, task.rubric.resolution_keywords.get(res, [])):
+            matched += 1
+
+    # Minimum Coverage Penalty: Matched < 50% → -0.1
+    if total_resolutions > 0 and matched < total_resolutions / 2:
+        pen_score -= 0.1
+        pen_reasons["coverage_penalty"] = f"Low resolution coverage ({matched}/{total_resolutions})"
+
+    # Structure-based Anti-Generic Check: "Sounds helpful but zero correctness" → -0.1
+    if cor_score < 0.2 and hlp_score > 0.15:
+        pen_score -= 0.1
+        pen_reasons["anti_generic"] = "High helpfulness but dangerously low correctness (bluffing)"
+
+    # Hard Generic Phrase Penalty
+    if _contains_any(response, GENERIC_PHRASES):
+        # Only penalise if no actual resolution was found
+        if cor_score < 0.1:
+            pen_score -= 0.1
+            pen_reasons["generic_phrasing"] = "Used generic fluff without specific resolutions"
+
+    # 3. Sum total
     total = emp_score + cor_score + hlp_score + pen_score
+
+    # 4. Apply Hard Gating (The "Correctness Gate")
+    if cor_score < 0.2:
+        total *= 0.5
+        cor_reasons["gating"] = "Low correctness multiplier (x0.5) applied"
+    
+    if cor_score < 0.1:
+        total *= 0.3
+        cor_reasons["gating"] = "Critical correctness failure multiplier (x0.3) applied"
+
+    # 5. Hard Task Booster (Secret Weapon)
+    if difficulty == "hard" and cor_score < 0.3:
+        total *= 0.7
+        cor_reasons["hard_task_gating"] = "Hard task correctness requirement not met (x0.7) applied"
+
+    # Clamp and round
     total = round(max(0.0, min(1.0, total)), 2)
 
     # Merge all reasoning
