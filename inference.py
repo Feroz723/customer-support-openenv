@@ -14,7 +14,7 @@ from tasks import list_task_ids
 BENCHMARK = "customer-support-env"
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 TEMPERATURE = 0.2
 MAX_TOKENS = 512
@@ -208,7 +208,7 @@ def run_task(client: OpenAI | None, env: CustomerSupportEnv, task_id: str) -> di
 
 
 def main() -> None:
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY) if API_KEY else None
+    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN) if HF_TOKEN else None
     env = CustomerSupportEnv()
     results: list[dict[str, Any]] = []
 
