@@ -1,5 +1,3 @@
-print("=== API FILE LOADED ===")
-
 from __future__ import annotations
 import json
 import traceback
@@ -10,6 +8,8 @@ from models import Action
 
 app = FastAPI(title="Customer Support OpenEnv")
 env = CustomerSupportEnv()
+
+print("=== API FILE LOADED ===")
 
 @app.on_event("startup")
 def startup():
