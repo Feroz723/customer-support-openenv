@@ -157,7 +157,9 @@ def run_task(client: OpenAI, task_id: str) -> dict[str, Any]:
                 result = env.step(Action(response=action_text))
             except Exception as exc:
                 error = str(exc) if error is None else error
-                log_step(step=step, action=action_text, reward=0.01, done=False, error=error)
+                rewards.append(0.01)
+                steps_taken = step
+                log_step(step=step, action=action_text, reward=0.01, done=True, error=error)
                 break
 
             reward = float(result.reward or 0.01)
