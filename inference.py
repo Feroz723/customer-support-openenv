@@ -35,7 +35,7 @@ def _format_error(value: str | None) -> str:
 
 
 def _format_reward(value: float) -> str:
-    return f"{max(0.0, min(value, 1.0)):.2f}"
+    return f"{max(0.01, min(value, 0.99)):.2f}"
 
 
 def _format_rewards(values: list[float]) -> str:
@@ -157,12 +157,12 @@ def run_task(client: OpenAI, task_id: str) -> dict[str, Any]:
                 result = env.step(Action(response=action_text))
             except Exception as exc:
                 error = str(exc) if error is None else error
-                log_step(step=step, action=action_text, reward=0.0, done=False, error=error)
+                log_step(step=step, action=action_text, reward=0.01, done=False, error=error)
                 break
 
-            reward = float(result.reward or 0.0)
+            reward = float(result.reward or 0.01)
             done = bool(result.done)
-            rewards.append(max(0.0, min(reward, 1.0)))
+            rewards.append(max(0.01, min(reward, 0.99)))
             steps_taken = step
 
             log_step(step=step, action=action_text, reward=reward, done=done, error=error)
