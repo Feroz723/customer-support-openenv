@@ -85,6 +85,9 @@ REFUND_KEYWORDS = [
     "credit to your account",
 ]
 
+SCORE_FLOOR = 0.01
+SCORE_CEILING = 0.99
+
 
 # ══════════════════════════════════════════════
 # SCORING HELPERS
@@ -313,7 +316,8 @@ def grade_response(response: str, task: Task) -> RewardBreakdown:
     total *= multiplier
 
     # 6. Finalize Rewards
-    final_total = round(max(0.0, min(1.0, total)), 2)
+    # The evaluator requires scores to be strictly within (0, 1), never exactly 0 or 1.
+    final_total = round(max(SCORE_FLOOR, min(SCORE_CEILING, total)), 2)
 
     # Build Structured Output
     reasoning = {
