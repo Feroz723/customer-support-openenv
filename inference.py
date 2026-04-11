@@ -180,7 +180,7 @@ def run_task(client: OpenAI, task_id: str) -> dict[str, Any]:
         return {
             "task_id": task_id,
             "difficulty": observation.difficulty if observation else None,
-            "score": round(sum(rewards) / len(rewards), 4) if rewards else 0.0,
+            "score": round(max(0.01, min(sum(rewards) / len(rewards), 0.99)), 4) if rewards else 0.01,
             "success": success,
             "rewards": [round(reward, 4) for reward in rewards],
             "reward_breakdown": breakdown,
@@ -201,7 +201,7 @@ def main() -> None:
         results.append(run_task(client, task_id))
 
     average_score = round(
-        sum(result["score"] for result in results) / len(results) if results else 0.0,
+        max(0.01, min(sum(result["score"] for result in results) / len(results), 0.99)) if results else 0.01,
         4,
     )
     payload = {

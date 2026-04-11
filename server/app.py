@@ -24,7 +24,7 @@ def step(body: dict[str, Any]):
     # Return OpenEnv compliant structure with top-level fields
     return {
         "observation": obs.model_dump(),
-        "reward": float(obs.reward) if obs.reward is not None else 0.0,
+        "reward": float(obs.reward) if obs.reward is not None else 0.01,
         "done": bool(obs.done),
         "info": obs.reward_breakdown.model_dump() if obs.reward_breakdown else {}
     }

@@ -67,7 +67,7 @@ class RewardBreakdown(BaseModel):
     correctness_score: float = 0.0  # 0.0 – 0.4
     helpfulness_score: float = 0.0  # 0.0 – 0.3
     penalty: float = 0.0            # 0.0 to -0.2
-    total: float = 0.0              # clamped [0.0, 1.0]
+    total: float = 0.01              # clamped (0, 1) — never exactly 0 or 1
     reasoning: dict[str, Any] = Field(default_factory=dict)
 
 
