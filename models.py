@@ -48,7 +48,7 @@ class Observation(BaseModel):
     internal_notes: list[str] = Field(default_factory=list)
     company_policies: dict[str, str] = Field(default_factory=dict)
     done: bool = False
-    reward: float | None = None
+    reward: float | None = 0.01
     reward_breakdown: RewardBreakdown | None = None
     step_count: int = 0
     max_steps: int = 1

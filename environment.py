@@ -31,7 +31,7 @@ class CustomerSupportEnv:
         self._step_count: int = 0
         self._max_steps: int = 1        # single-turn
         self._done: bool = True
-        self._cumulative_reward: float = 0.0
+        self._cumulative_reward: float = 0.01
         self._history: list[dict] = []  # list of {observation, action, reward}
         self._reward_breakdown: RewardBreakdown | None = None
 
@@ -64,9 +64,9 @@ class CustomerSupportEnv:
         self._episode_id = str(uuid.uuid4())
         self._step_count = 0
         self._done = False
-        self._cumulative_reward = 0.0
+        self._cumulative_reward = 0.01
         self._history = []
-        self._reward_breakdown = None
+        self._reward_breakdown = RewardBreakdown()
 
         # Build initial observation (deep copy so task data stays clean)
         self._observation = copy.deepcopy(self._task.observation)
@@ -105,7 +105,7 @@ class CustomerSupportEnv:
 
         # Update state
         self._step_count += 1
-        self._cumulative_reward += reward_breakdown.total
+        self._cumulative_reward = reward_breakdown.total
         self._done = self._step_count >= self._max_steps
         self._reward_breakdown = reward_breakdown
 
@@ -145,9 +145,9 @@ class CustomerSupportEnv:
             "step_count": self._step_count,
             "max_steps": self._max_steps,
             "done": self._done,
-            "cumulative_reward": round(self._cumulative_reward, 2),
+            "cumulative_reward": round(max(0.01, min(self._cumulative_reward, 0.99)), 2),
             "reward_breakdown": (
-                self._reward_breakdown.model_dump() if self._reward_breakdown else None
+                self._reward_breakdown.model_dump() if self._reward_breakdown else RewardBreakdown().model_dump()
             ),
             "history": self._history,
             "available_tasks": list_task_ids(),
