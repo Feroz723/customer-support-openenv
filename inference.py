@@ -39,6 +39,8 @@ def _format_reward(value: float) -> str:
 
 
 def _format_rewards(values: list[float]) -> str:
+    if not values:
+        return _format_reward(0.01)
     return ",".join(_format_reward(value) for value in values)
 
 
@@ -127,6 +129,8 @@ def get_model_message(client: OpenAI, observation: Observation) -> str:
         max_tokens=MAX_TOKENS,
     )
     message = (completion.choices[0].message.content or "").strip()
+    if not message:
+        return _fallback_action(observation)
     return _normalize_text(message[:2000])
 
 
@@ -173,8 +177,8 @@ def run_task(client: OpenAI, task_id: str) -> dict[str, Any]:
             if done:
                 break
 
-        if rewards:
-            success = (sum(rewards) / len(rewards)) >= SUCCESS_SCORE_THRESHOLD
+        normalized_rewards = rewards or [0.01]
+        success = bool(rewards) and (sum(rewards) / len(rewards)) >= SUCCESS_SCORE_THRESHOLD
 
         breakdown = (
             observation.reward_breakdown.model_dump() if observation and observation.reward_breakdown else {}
@@ -182,14 +186,14 @@ def run_task(client: OpenAI, task_id: str) -> dict[str, Any]:
         return {
             "task_id": task_id,
             "difficulty": observation.difficulty if observation else None,
-            "score": round(max(0.01, min(sum(rewards) / len(rewards), 0.99)), 4) if rewards else 0.01,
+            "score": round(max(0.01, min(sum(normalized_rewards) / len(normalized_rewards), 0.99)), 4),
             "success": success,
-            "rewards": [round(reward, 4) for reward in rewards],
+            "rewards": [round(reward, 4) for reward in normalized_rewards],
             "reward_breakdown": breakdown,
         }
     finally:
         env.close()
-        log_end(success=success, steps=steps_taken, rewards=rewards)
+        log_end(success=success, steps=steps_taken, rewards=rewards or [0.01])
 
 
 def main() -> None:
